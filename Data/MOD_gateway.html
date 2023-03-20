@@ -1,0 +1,108 @@
+﻿
+    <!-- MODS -->
+    <script type="text/javascript" id="MOD_js-script">
+        // This part will be modular and entirely customizable using the framework
+        // The idea is to only have one mod (the framework) modifying the gateway.html
+        // Hence multiple mods would be able to coexist much more easily
+    
+        // Add a globalState to hold the current locked legion id, 0 is disabled
+        globalState.MOD_NMM_ForcedMastermindLegion = 0;
+        
+        // Rewrites the options content to add the Mods section
+        function MOD_NMM_addModSection() {
+            var keyId = optionsMenu[optionsMenu.length - 1].key + 1;
+            optionsMenu.push({ key: keyId++, menuId: keyId, name: "MOD_Mods", displayName: "Mods", content: React.createElement(ModsOptions, {}), narrow: true });
+        }
+    
+        // Rewrites the function that fills of content the MastermindVariantsMenu
+        // The logic of the new getMastermindVariantsMenu() is:
+        // If no option selected or issue, use the default _getMastermindVariantsMenu()
+        // Else it provides the custom code to give only custom items
+        function MOD_NMM_updateMastermindVariantsMenu() {
+            
+            _getMastermindVariantsMenu = getMastermindVariantsMenu;
+            
+            getMastermindVariantsMenu = function() {
+                
+                // We get the original items
+                var originalItems = _getMastermindVariantsMenu();
+                var legionIndex = globalState.MOD_NMM_ForcedMastermindLegion - 1;
+                
+                // In case mod has wrong or disabled index we return the original
+                if (legionIndex < 0 || legionIndex >= originalItems.length) {
+                    return originalItems;
+                }
+                // Else we use almost the same code but with only one index
+                var forcedItem = originalItems[legionIndex];
+                // If all OK
+                if (!forcedItem.disabled) {
+                    return [forcedItem];
+                }
+                // Else we failsafe back to the original items
+                return originalItems;
+            }
+        }
+        
+        // Adds a binding for the new event sent by the handler created in the patched LoadOptions
+        // It updates directly the legion id
+        // Saves the value in the globalState
+        engine.on('MOD_NMM_setForcedMastermindLegion', function(legionIndex) {
+            globalState.MOD_NMM_ForcedMastermindLegion = legionIndex;
+            console.log("[MOD_NMM] ForcedMastermindLegion id=" + globalState.MOD_NMM_ForcedMastermindLegion);
+        });
+    
+        // Hijacks the loadConfig callback of the forceReloadView event
+        // Forces the use of the new optionsMenu by adding to the original code the call to our MOD_NMM_addModSection()
+        // It makes sure the Mods tab does not disappear from the options menu when language is changed for ex
+        // It makes sure to not reset getMastermindVariantsMenu in a similar way
+        engine.off('forceReloadView');
+        engine.on('forceReloadView', function () {
+            console.log("[MOD_NMM] Force reloading view...")
+            loadConfig();
+            MOD_NMM_addModSection();
+            MOD_NMM_updateMastermindVariantsMenu();
+        });
+    
+        // Creates the React component that displays the Mods tab
+        ModsOptions = React.createClass({
+            render: function () {
+                return (
+                    React.createElement('ul', { className: 'options-container' },
+                        React.createElement('h1', { style: { color: "white" } }, "Mods Options"),
+                        
+                        React.createElement('p', { },
+                            React.createElement('span', {
+                                style: { color: "#ffcc00" }
+                            }, "Narrow Master Minded"),
+                            React.createElement('div', { className: 'simple-tooltip flipped-y' },
+                                React.createElement('img', {
+                                    src: 'hud/img/small-icons/help.png', style: {
+                                        width: '16px',
+                                        marginLeft: '8px'
+                                    }
+                                }),
+                                React.createElement('span', {
+                                    className: 'tooltiptext',
+                                    dangerouslySetInnerHTML: {
+                                        __html: "By Kidev, version 1.4.2<br>This configurable mod makes a single mastermind legion available"
+                                    }
+                                })
+                            )
+                        ),
+                        React.createElement('li', {},
+                            React.createElement('div', { className: 'description' }, "Forced Legion"),
+                            React.createElement('div', { className: 'value dropdown' },
+                                React.createElement(DropdownMenu, { field: 'MOD_NMM_ForcedMastermindLegion' })
+                            )
+                        )
+                    )
+                );
+            }
+        });
+        
+        // Always for the use of our optionsMenu and custom MastermindVariantsMenu from the start, before the render
+        MOD_NMM_addModSection();
+        MOD_NMM_updateMastermindVariantsMenu();
+        
+    </script>
+    <!-- End MODS -->
