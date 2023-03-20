@@ -30,14 +30,17 @@ namespace NarrowMasterMinded
 
         // When the plugin is loaded
         public void Awake() {
-            // Create masking Logger that references to the base one, to use Logger from outside the Plugin class
+            // Create masking Logger as internal to use more easily in code
             Logger = base.Logger;
 
-            // Get instances of static classes with Traverse: first the type, then the instance, and we act on it
+            // Get type of 'Assets.Api.ConfigApi' game class, hook a Traverse on an instance of it
+            // Then jump to the ClientVersion field and get the value
             var typeConfigApi = AccessTools.TypeByName("Assets.Api.ConfigApi");
             var trConfigApi = Traverse.Create(typeConfigApi);
             _configApiClientVersion = trConfigApi.Field("ClientVersion").GetValue<string>();
             
+            // Get type of 'Assets.Presets' game class, hook a Traverse on an instance of it
+            // Then save a Traverse to its 'OptionsSections' field
             var typePresets = AccessTools.TypeByName("Assets.Presets");
             var trPresets = Traverse.Create(typePresets);
             _trPresetsOptionsSections = trPresets.Field("OptionsSections");
@@ -49,12 +52,13 @@ namespace NarrowMasterMinded
                 Logger.LogWarning($"Update your client to v{C.ClientVersionSupported} or wait for a mod update");
             }
 
+            // Get paths to game js folder and to our future modded gateway
             _gatewayFileAbs =
                 Path.Combine(Paths.GameRootPath, "Legion TD 2_Data", "uiresources", "AeonGT", C.GatewayFileName);
             _gatewayFileModdedAbs =
                 Path.Combine(Paths.GameRootPath, "Legion TD 2_Data", "uiresources", "AeonGT", C.GatewayFileNameModded);
 
-            // Inject and patch
+            // Inject custom js and patch c#
             try {
                 RemoveTempFiles();
                 InjectIntoGateway();
@@ -70,20 +74,22 @@ namespace NarrowMasterMinded
         }
 
         // Unpatch if plugin is destroyed to handle in-game plugin reloads
+        // Remove files we created
         public void OnDestroy() {
             UnPatch();
             RemoveTempFiles();
         }
 
         private void Patch() {
-            // Add our data inside the static class reached during Awake
+            // Call our saved Traverse to add to underlying 'OptionsSections' our custom menu option section: "Mods"
             _trPresetsOptionsSections
                 .Method("Add", new object[]{C.CfgLegionField, C.CfgLegionSection})
                 .GetValue();
-            // Apply all patches
+            // Apply all patches or current assembly
             _harmony.PatchAll(_assembly);
         }
 
+        // Undoes what Patch() did
         private void UnPatch() {
             if (_trPresetsOptionsSections
                 .Method("ContainsKey", new object[]{C.CfgLegionField})
@@ -94,6 +100,8 @@ namespace NarrowMasterMinded
             _harmony.UnpatchSelf();
         }
 
+        // Adds content of embedded html to the original gateway
+        // Save result in custom gateway that we'll force the game to use
         private void InjectIntoGateway() {
             var lines = File.ReadAllLines(_gatewayFileAbs);
             var resStream = _assembly.GetManifestResourceStream(C.GatewayEmbedded);
@@ -103,6 +111,7 @@ namespace NarrowMasterMinded
             File.WriteAllLines(_gatewayFileModdedAbs, lines);
         }
 
+        // Delete custom gateway file
         private void RemoveTempFiles() {
             if (File.Exists(_gatewayFileModdedAbs)) {
                 File.Delete(_gatewayFileModdedAbs);
@@ -110,6 +119,9 @@ namespace NarrowMasterMinded
         }
     }
     
+    // This patches a method inside a class, details inside
+    // Just before it is called, and if the m_Page field references to gateway.html
+    // We will change the m_Page field to reference our MOD_gateway.html instead
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     [SuppressMessage("ReSharper", "UnusedMember.Local")]
     [HarmonyPatch]
@@ -117,16 +129,22 @@ namespace NarrowMasterMinded
     {
         private static Type _typeCoherentUIGTView;
 
+        // To prepare the patch, we save the type we want to patch in game dll: CoherentUIGTView
         [HarmonyPrepare]
         private static void Prepare() {
             _typeCoherentUIGTView = AccessTools.TypeByName("CoherentUIGTView");
         }
 
+        // Then we give info about the method in this type we want to patch: SendCreateView
         [HarmonyTargetMethod]
         private static MethodBase TargetMethod() {
             return AccessTools.Method(_typeCoherentUIGTView, "SendCreateView");
         }
 
+        // For the method returned in TargetMethod, add this prefix
+        // ___m_Page is a ref to field m_Page from patched object CoherentUIGTView
+        // We edit it, and return true to still call the real SendCreateView
+        // Therefore we edit the target file of the view as we please
         [HarmonyPrefix]
         private static bool SendCreateViewPre(ref string ___m_Page) {
             if (___m_Page.Equals(C.GatewayFile)) {
@@ -136,6 +154,13 @@ namespace NarrowMasterMinded
         }
     }
     
+    // Same global idea as before, except we need also references to other classes
+    //
+    // We add our custom setting to the HudOptions.options field and to OptionsHandlers field
+    //
+    // Look at LoadOptions source, this simply recreates what this line would do in LoadOptions:
+    // action(P.CfgLegionField, P.CfgLegionDefaultValue, P.CfgLegionPossibleValues);
+    // This adds a handler to be able to send the data to the UI's globalState
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     [SuppressMessage("ReSharper", "UnusedMember.Local")]
     [HarmonyPatch]
@@ -145,6 +170,8 @@ namespace NarrowMasterMinded
         private static Type _typeOptionValue;
         private static Traverse _trHudApi;
 
+        // We get _typeHudOptions for the target method, but also grab classes in HudOptions
+        // OptionValue is an inner class of HudOptions so we use Inner()
         [HarmonyPrepare]
         private static void Prepare() {
             _typeHudOptions = AccessTools.TypeByName("Assets.Features.Hud.HudOptions");
@@ -153,11 +180,14 @@ namespace NarrowMasterMinded
             _trHudApi = Traverse.Create(AccessTools.TypeByName("Assets.Api.HudApi"));
         }
         
+        // We patch LoadOptions inside HudOptions
         [HarmonyTargetMethod]
         private static MethodBase TargetMethod() {
             return AccessTools.Method(_typeHudOptions, "LoadOptions");
         }
         
+        // And this time we patch as post, and we add data that was not added by the base game
+        // We add handlers for the new config and the new option to use the game standard settings logic
         [HarmonyPostfix]
         private static void LoadOptionsPost(
             ref object ___config,
@@ -179,6 +209,8 @@ namespace NarrowMasterMinded
                 P.Logger.LogInfo($"Custom mod option {C.CfgLegionField} handler assigned");
             }
             
+            // Create instance of a class we do not really know based on game dll knowledge
+            // We use Activator, AccessTools and Traverse to do it indirectly without adding game dlls to dependancies
             var optionValue = Activator.CreateInstance(_typeOptionValue);
 
             var argsLoadString = new object[] {
@@ -187,6 +219,7 @@ namespace NarrowMasterMinded
                 C.CfgLegionPossibleValues
             };
 
+            // Hijack the storing of settings from the game to use it as well for custom options
             var strFromCfg = Traverse.Create(___config)
                 .Method("LoadString", argsLoadString)
                 .GetValue<string>();

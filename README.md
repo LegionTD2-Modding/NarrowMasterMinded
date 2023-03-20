@@ -1,4 +1,6 @@
 # Narrow Master Minded
+![NarrowMasterMinded Release](https://github.com/LegionTD2-Mods/NarrowMasterMinded/actions/workflows/build_release_tag.yml/badge.svg)
+
 This Legion TD2 mod was originally made for [Pennywise](https://www.twitch.tv/pennywiseuk), to only allow the mastermind legion Yolo (aka _the only good option_)\
 But it was extended to make the option configurable directly in game with a new options tab.
 

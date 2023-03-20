@@ -1,4 +1,4 @@
-name: Build and release on version tag
+name: NarrowMasterMinded Release
 
 on:
   push:
