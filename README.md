@@ -1,5 +1,5 @@
 # Narrow Master Minded
-![NarrowMasterMinded Release](https://github.com/LegionTD2-Mods/NarrowMasterMinded/actions/workflows/build_release_tag.yml/badge.svg)
+![NarrowMasterMinded Release](https://github.com/LegionTD2-Modding/NarrowMasterMinded/actions/workflows/build_release_tag.yml/badge.svg)
 
 This Legion TD2 mod was originally made for [Pennywise](https://www.twitch.tv/pennywiseuk), to only allow the mastermind legion Yolo (aka _the only good option_)\
 But it was extended to make the option configurable directly in game with a new options tab.
@@ -9,8 +9,8 @@ It is therefore copiously commented to help anyone wanting to understand its inn
 
 ## Installation
 - Close the game
-- If not already done, follow this guide to install [BepInEx](https://github.com/LegionTD2-Mods/.github/wiki/Installation-of-BepInEx)
-- Download the latest [release](https://github.com/LegionTD2-Mods/NarrowMasterMinded/releases/latest), and drop `NarrowMasterMinded.dll` inside your `Legion TD 2/BepInEx/plugins/` folder
+- If not already done, follow this guide to install [BepInEx](https://github.com/LegionTD2-Modding/.github/wiki/Installation-of-BepInEx)
+- Download the latest [release](https://github.com/LegionTD2-Modding/NarrowMasterMinded/releases/latest), and drop `NarrowMasterMinded.dll` inside your `Legion TD 2/BepInEx/plugins/` folder
 - You are done, you can start the game and enjoy!
 
 ## Build
